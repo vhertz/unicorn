@@ -168,7 +168,7 @@ typedef enum uc_err {
 
 
 /*
-  Callback function for tracing code (UC_HOOK_CODE & UC_HOOK_BLOCK)
+  Callback function for tracing code (UC_HOOK_CODE & UC_HOOK_BLOCK & UC_HOOK_BLOCK_TAIL)
 
   @address: address where the code is being executed
   @size: size of machine instruction(s) being executed, or 0 when size is unknown
@@ -258,6 +258,8 @@ typedef enum uc_hook_type {
     UC_HOOK_MEM_READ_AFTER = 1 << 13,
     // Hook invalid instructions exceptions.
     UC_HOOK_INSN_INVALID = 1 << 14,
+    // Hook an end of basic blocks
+    UC_HOOK_BLOCK_TAIL = 1 << 15,
 } uc_hook_type;
 
 // Hook type for all events of unmapped memory access

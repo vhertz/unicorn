@@ -4022,9 +4022,14 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
 static inline void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
 {
     TCGContext *tcg_ctx = s->uc->tcg_ctx;
-    TranslationBlock *tb;
+    TranslationBlock *tb = s->tb;
 
-    tb = s->tb;
+    // Unicorn: trace the end of this block on request
+    if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, s->pc)) {
+        gen_uc_tracecode(tcg_ctx, (s->pc - tb->pc), UC_HOOK_BLOCK_TAIL_IDX,
+                         tcg_ctx->uc, s->pc - 4);
+    }
+
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(tcg_ctx, n);
         gen_set_pc_im(s, dest);
@@ -11507,6 +11512,12 @@ tb_end:
         default:
         case DISAS_JUMP:
         case DISAS_UPDATE:
+            // Unicorn: trace the end of this block on request
+            if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, dc->pc)) {
+                gen_uc_tracecode(tcg_ctx, (dc->pc - tb->pc),
+                                 UC_HOOK_BLOCK_TAIL_IDX,
+                                 tcg_ctx->uc, dc->pc - 4);
+            }
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(tcg_ctx, 0);
             break;
@@ -11514,6 +11525,12 @@ tb_end:
             /* nothing more to generate */
             break;
         case DISAS_WFI:
+            // Unicorn: trace the end of this block on request
+            if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, dc->pc)) {
+                gen_uc_tracecode(tcg_ctx, (dc->pc - tb->pc),
+                                 UC_HOOK_BLOCK_TAIL_IDX,
+                                 tcg_ctx->uc, dc->pc - 4);
+            }
             gen_helper_wfi(tcg_ctx, tcg_ctx->cpu_env);
             break;
         case DISAS_WFE:
@@ -11538,6 +11555,9 @@ tb_end:
     }
 
 done_generating:
+    if (!search_pc) {
+        tb->size = dc->pc - pc_start;
+    }
     gen_tb_end(tcg_ctx, tb, num_insns);
     *tcg_ctx->gen_opc_ptr = INDEX_op_end;
 
@@ -11546,9 +11566,6 @@ done_generating:
         lj++;
         while (lj <= j)
             tcg_ctx->gen_opc_instr_start[lj++] = 0;
-    } else {
-        tb->size = dc->pc - pc_start;
-        //tb->icount = num_insns;
     }
 
     env->uc->block_full = block_full;

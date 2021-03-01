@@ -42,6 +42,13 @@ static inline void gen_tb_start(TCGContext *tcg_ctx)
 static inline void gen_tb_end(TCGContext *tcg_ctx, TranslationBlock *tb, int num_insns)
 {
     gen_set_label(tcg_ctx, tcg_ctx->exitreq_label);
+    
+    // Unicorn: trace the end of this block on request
+    if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, tb->size + tb->pc)) {
+        gen_uc_tracecode(tcg_ctx, tb->size, UC_HOOK_BLOCK_TAIL_IDX,
+                         tcg_ctx->uc, tb->size + tb->pc - 4);
+    }
+
     tcg_gen_exit_tb(tcg_ctx, (uintptr_t)tb + TB_EXIT_REQUESTED);
 
 #if 0
