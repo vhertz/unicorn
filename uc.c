@@ -1219,7 +1219,7 @@ void helper_uc_tracecode(int32_t size, uc_hook_type type, void *handle, int64_t 
     struct hook *hook;
 
     // sync PC in CPUArchState with address
-    if (uc->set_pc) {
+    if (uc->set_pc && (enum uc_hook_idx)type != UC_HOOK_BLOCK_TAIL_IDX) {
         uc->set_pc(uc, address);
     }
 
