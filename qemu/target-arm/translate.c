@@ -11525,12 +11525,6 @@ tb_end:
             /* nothing more to generate */
             break;
         case DISAS_WFI:
-            // Unicorn: trace the end of this block on request
-            if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, dc->pc)) {
-                gen_uc_tracecode(tcg_ctx, (dc->pc - tb->pc),
-                                 UC_HOOK_BLOCK_TAIL_IDX,
-                                 tcg_ctx->uc, dc->pc - 4);
-            }
             gen_helper_wfi(tcg_ctx, tcg_ctx->cpu_env);
             break;
         case DISAS_WFE:
