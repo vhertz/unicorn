@@ -11549,10 +11549,24 @@ tb_end:
     }
 
 done_generating:
-    if (!search_pc) {
-        tb->size = dc->pc - pc_start;
+    //gen_tb_end(tcg_ctx, tb, num_insns);
+    {
+        gen_set_label(tcg_ctx, tcg_ctx->exitreq_label);
+
+        // Unicorn: trace the end of this block on request
+        if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, dc->pc)) {
+            int l1 = gen_new_label(tcg_ctx);
+            TCGv_i32 tmp32 = tcg_temp_new_i32(tcg_ctx);
+            tcg_gen_mov_i32(tcg_ctx, tmp32, tcg_ctx->cpu_R[15]);
+            tcg_gen_brcondi_i32(tcg_ctx, TCG_COND_NE, tmp32, dc->pc, l1);
+            gen_uc_tracecode(tcg_ctx, (dc->pc - tb->pc), UC_HOOK_BLOCK_TAIL_IDX,
+                             tcg_ctx->uc, dc->pc - 4);
+            gen_set_label(tcg_ctx, l1);
+            tcg_temp_free_i32(tcg_ctx, tmp32);
+        }
+
+        tcg_gen_exit_tb(tcg_ctx, (uintptr_t)tb + TB_EXIT_REQUESTED);
     }
-    gen_tb_end(tcg_ctx, tb, num_insns);
     *tcg_ctx->gen_opc_ptr = INDEX_op_end;
 
     if (search_pc) {
@@ -11560,6 +11574,9 @@ done_generating:
         lj++;
         while (lj <= j)
             tcg_ctx->gen_opc_instr_start[lj++] = 0;
+    } else {
+        tb->size = dc->pc - pc_start;
+        //tb->icount = num_insns;
     }
 
     env->uc->block_full = block_full;
