@@ -11549,24 +11549,22 @@ tb_end:
     }
 
 done_generating:
-    //gen_tb_end(tcg_ctx, tb, num_insns);
-    {
-        gen_set_label(tcg_ctx, tcg_ctx->exitreq_label);
-
-        // Unicorn: trace the end of this block on request
-        if (HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, dc->pc)) {
-            int l1 = gen_new_label(tcg_ctx);
-            TCGv_i32 tmp32 = tcg_temp_new_i32(tcg_ctx);
-            tcg_gen_mov_i32(tcg_ctx, tmp32, tcg_ctx->cpu_R[15]);
-            tcg_gen_brcondi_i32(tcg_ctx, TCG_COND_NE, tmp32, dc->pc, l1);
+    // gen_tb_end() の処理を展開し，途中で uc_tracecode() を呼び出すようにした．
+    // gen_tb_end() を変更せず展開した理由は，uc_tracecode() の引数において
+    // gen_tb_end() のスコープからは参照できない情報 dc を利用するためである．
+    gen_set_label(tcg_ctx, tcg_ctx->exitreq_label);
+    if (!block_full && HOOK_EXISTS_BOUNDED(tcg_ctx->uc, UC_HOOK_BLOCK_TAIL, dc->pc)) {
+            int label = gen_new_label(tcg_ctx);
+            TCGv_i32 tmp = tcg_temp_new_i32(tcg_ctx);
+            tcg_gen_mov_i32(tcg_ctx, tmp, tcg_ctx->cpu_R[15]);
+            tcg_gen_brcondi_i32(tcg_ctx, TCG_COND_NE, tmp, dc->pc, label);
             gen_uc_tracecode(tcg_ctx, (dc->pc - tb->pc), UC_HOOK_BLOCK_TAIL_IDX,
                              tcg_ctx->uc, dc->pc - 4);
-            gen_set_label(tcg_ctx, l1);
-            tcg_temp_free_i32(tcg_ctx, tmp32);
-        }
-
-        tcg_gen_exit_tb(tcg_ctx, (uintptr_t)tb + TB_EXIT_REQUESTED);
+            gen_set_label(tcg_ctx, label);
+            tcg_temp_free_i32(tcg_ctx, tmp);
     }
+    tcg_gen_exit_tb(tcg_ctx, (uintptr_t)tb + TB_EXIT_REQUESTED);
+    
     *tcg_ctx->gen_opc_ptr = INDEX_op_end;
 
     if (search_pc) {
