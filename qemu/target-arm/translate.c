@@ -10416,6 +10416,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s) // qq
     // Unicorn: end address tells us to stop emulation
     if (s->pc == s->uc->addr_end) {
         // imitate WFI instruction to halt emulation
+        gen_set_pc_im(s, s->pc);
         s->is_jmp = DISAS_WFI;
         return;
     }
@@ -11407,6 +11408,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             // end address tells us to stop emulation
             if (dc->pc == dc->uc->addr_end) {
                 // imitate WFI instruction to halt emulation
+                gen_set_pc_im(dc, dc->pc);
                 dc->is_jmp = DISAS_WFI;
             } else {
                 insn = arm_ldl_code(env, dc->pc, dc->bswap_code);
